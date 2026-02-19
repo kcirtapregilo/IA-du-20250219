@@ -3,41 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IA Scanner - Détecteur de Félins</title>
+    <title>IA Scanner - Mission : Trouver le Truc</title>
     
-    <!-- Importation des bibliothèques TensorFlow.js pour l'IA -->
+    <!-- Importation des bibliothèques d'Intelligence Artificielle (Google TensorFlow) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
 
     <style>
         :root {
-            --primary: #00e5ff;
+            --accent: #facc15; /* Jaune pour le côté technique/chantier */
             --bg: #0f172a;
-            --card: #1e293b;
-            --success: #00ff88;
-            --text: #f8fafc;
+            --panel: #1e293b;
+            --success: #22c55e;
         }
 
         body {
             margin: 0;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: var(--bg);
-            color: var(--text);
+            color: white;
             display: flex;
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
         }
 
-        /* Conteneur pour le flux vidéo */
-        #video-container {
+        /* Vue Caméra */
+        #viewport {
             position: relative;
             flex: 1;
             background: black;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
         }
 
         video {
@@ -46,202 +44,157 @@
             object-fit: cover;
         }
 
-        /* Viseur central pour guider l'élève */
-        #scanner-overlay {
+        /* Viseur de détection */
+        #target-box {
             position: absolute;
-            width: 240px;
-            height: 240px;
-            border: 3px solid var(--primary);
-            border-radius: 40px;
-            box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.5);
+            width: 250px;
+            height: 250px;
+            border: 3px dashed var(--accent);
+            border-radius: 20px;
             pointer-events: none;
             z-index: 5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        #scanner-overlay::after {
-            content: "";
+        #target-box::before {
+            content: "SCAN EN COURS";
             position: absolute;
-            inset: -10px;
-            border: 2px solid var(--primary);
-            border-radius: 50px;
-            opacity: 0.3;
-            animation: pulse 2s infinite;
+            top: -30px;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: var(--accent);
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.3; }
-            50% { transform: scale(1.05); opacity: 0.1; }
-            100% { transform: scale(1); opacity: 0.3; }
-        }
-
-        /* Panneau de résultats */
-        #ui-panel {
-            background: var(--card);
+        /* Interface de contrôle */
+        #control-panel {
+            background: var(--panel);
             padding: 20px;
-            border-top: 4px solid var(--primary);
+            border-top: 4px solid var(--accent);
             text-align: center;
-            min-height: 220px;
-            box-shadow: 0 -10px 25px rgba(0,0,0,0.4);
+            min-height: 200px;
             z-index: 10;
         }
 
-        .label {
-            font-size: 0.75rem;
+        .mission-title {
+            font-size: 0.8rem;
             color: #94a3b8;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
 
-        #result-text {
-            font-size: 1.6rem;
-            font-weight: 800;
+        #status-display {
+            font-size: 1.5rem;
+            font-weight: 900;
             margin: 10px 0;
-            color: var(--primary);
-            min-height: 2.2rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            color: var(--accent);
         }
 
-        /* Barre de progression pour la confiance de l'IA */
-        #confidence-container {
-            width: 85%;
-            max-width: 400px;
-            height: 10px;
+        /* Indicateur de certitude */
+        #meter {
+            width: 80%;
+            height: 8px;
             background: #334155;
-            margin: 12px auto;
-            border-radius: 5px;
+            margin: 10px auto;
+            border-radius: 4px;
             overflow: hidden;
         }
 
-        #confidence-bar {
+        #meter-bar {
             width: 0%;
             height: 100%;
-            background: var(--primary);
-            transition: width 0.3s ease-out;
+            background: var(--accent);
+            transition: width 0.3s;
         }
 
-        #confidence-value {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #cbd5e1;
-        }
-
-        /* Affichage de l'image de référence GitHub */
-        #reference-zone {
+        /* Affichage de la référence GitHub */
+        #found-gallery {
             margin-top: 15px;
             display: none;
-            animation: slideUp 0.4s ease-out;
         }
 
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        #ref-img {
-            width: 85px;
-            height: 85px;
-            border-radius: 12px;
+        #ref-image {
+            width: 90px;
+            height: 90px;
+            border-radius: 10px;
             border: 3px solid var(--success);
             object-fit: cover;
-            margin-top: 8px;
-            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
         }
 
-        /* Écran de chargement */
-        #loader {
+        /* Écran de démarrage */
+        #boot-screen {
             position: fixed;
             inset: 0;
             background: var(--bg);
-            z-index: 9999;
+            z-index: 100;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
 
-        .spinner {
-            width: 45px;
-            height: 45px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top: 4px solid var(--primary);
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #334155;
+            border-top-color: var(--accent);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: rotate 1s linear infinite;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        #error-msg {
-            display: none;
-            color: #ff4444;
-            padding: 20px;
-            text-align: center;
-        }
+        @keyframes rotate { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <!-- Écran de chargement initial -->
-    <div id="loader">
-        <div class="spinner"></div>
-        <p style="margin-top: 20px; font-weight: 500;">Chargement de l'IA...</p>
+    <div id="boot-screen">
+        <div class="loader"></div>
+        <p style="margin-top:20px;">Chargement de l'IA de reconnaissance...</p>
     </div>
 
-    <div id="error-msg">
-        <h3>Accès refusé</h3>
-        <p>Veuillez autoriser l'accès à la caméra pour utiliser le scanner.</p>
-    </div>
-
-    <div id="video-container">
+    <div id="viewport">
         <video id="webcam" autoplay playsinline muted></video>
-        <div id="scanner-overlay"></div>
+        <div id="target-box"></div>
     </div>
 
-    <div id="ui-panel">
-        <div class="label">Analyse Intelligence Artificielle</div>
-        <div id="result-text">Initialisation...</div>
+    <div id="control-panel">
+        <div class="mission-title">Objectif : Identifier l'objet "TRUC"</div>
+        <div id="status-display">RECHERCHE...</div>
         
-        <div id="confidence-container">
-            <div id="confidence-bar"></div>
-        </div>
-        <div id="confidence-value">Confiance : 0%</div>
+        <div id="meter"><div id="meter-bar"></div></div>
+        <div id="conf-text" style="font-size: 11px; color:#94a3b8;">Fiabilité : 0%</div>
 
-        <!-- Zone de confirmation avec image GitHub -->
-        <div id="reference-zone">
-            <div class="label" style="color: var(--success);">Base de données GitHub OK</div>
-            <img id="ref-img" src="" alt="Référence">
+        <div id="found-gallery">
+            <div style="font-size: 11px; color: var(--success); margin-bottom: 5px;">✓ CORRESPONDANCE TECHNIQUE TROUVÉE</div>
+            <img id="ref-image" src="" alt="Référence technique">
         </div>
     </div>
 
     <script>
-        /**
-         * VARIABLES GLOBALES
-         */
         const video = document.getElementById('webcam');
-        const resultText = document.getElementById('result-text');
-        const confidenceBar = document.getElementById('confidence-bar');
-        const confidenceValue = document.getElementById('confidence-value');
-        const refZone = document.getElementById('reference-zone');
-        const refImg = document.getElementById('ref-img');
-        const loader = document.getElementById('loader');
-        
-        let classifier;
+        const statusDisplay = document.getElementById('status-display');
+        const meterBar = document.getElementById('meter-bar');
+        const confText = document.getElementById('conf-text');
+        const gallery = document.getElementById('found-gallery');
+        const refImg = document.getElementById('ref-image');
+        const bootScreen = document.getElementById('boot-screen');
 
-        // Liste des étiquettes (labels) MobileNet correspondant à des chats
-        const catKeywords = [
-            'cat', 'tabby', 'tiger cat', 'persian cat', 'siamese cat', 
-            'egyptian cat', 'angora', 'lynx', 'kitten', 'cougar'
-        ];
+        let model;
 
         /**
-         * INITIALISATION DE L'APPLICATION
+         * CONFIGURATION DE L'IA
+         * Modifiez les mots ci-dessous pour correspondre à votre objet technique !
+         * MobileNet utilise des noms d'objets courants en anglais.
          */
+        const TARGET_KEYWORDS = ['computer', 'laptop', 'mouse', 'keyboard', 'screen', 'monitor'];
+
         async function init() {
             try {
-                // 1. Chargement du modèle MobileNet
-                classifier = await mobilenet.load();
+                // Chargement de l'intelligence artificielle
+                model = await mobilenet.load();
                 
-                // 2. Accès à la caméra arrière (environment)
+                // Activation de la caméra
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'environment' },
                     audio: false
@@ -249,70 +202,54 @@
                 video.srcObject = stream;
 
                 video.onloadedmetadata = () => {
-                    loader.style.display = 'none';
-                    // 3. Lancer la boucle d'analyse
-                    startInferenceLoop();
+                    bootScreen.style.display = 'none';
+                    scan();
                 };
-            } catch (err) {
-                console.error("Erreur d'initialisation:", err);
-                loader.style.display = 'none';
-                document.getElementById('error-msg').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                alert("Erreur d'accès à la caméra.");
             }
         }
 
-        /**
-         * BOUCLE D'ANALYSE (INFERENCE)
-         */
-        async function startInferenceLoop() {
-            // L'IA classe l'image actuelle de la caméra
-            const predictions = await classifier.classify(video);
+        async function scan() {
+            // L'IA analyse l'image
+            const predictions = await model.classify(video);
 
             if (predictions && predictions.length > 0) {
-                const topMatch = predictions[0];
-                const label = topMatch.className.toLowerCase();
-                const prob = Math.round(topMatch.probability * 100);
+                const best = predictions[0];
+                const foundName = best.className.toLowerCase();
+                const score = Math.round(best.probability * 100);
 
-                // Vérification si c'est un félin
-                const isCat = catKeywords.some(keyword => label.includes(keyword));
+                // On vérifie si l'objet trouvé fait partie de la famille du "TRUC"
+                const isTarget = TARGET_KEYWORDS.some(k => foundName.includes(k));
 
-                if (isCat && prob > 35) {
-                    resultText.innerText = "CHAT DÉTECTÉ !";
-                    resultText.style.color = "var(--success)";
-                    triggerGitHubSync();
+                if (isTarget && score > 30) {
+                    statusDisplay.innerText = "TRUC DÉTECTÉ !";
+                    statusDisplay.style.color = "var(--success)";
+                    showTechnicalReference();
                 } else {
-                    // Affiche le nom de l'objet détecté (en anglais)
-                    resultText.innerText = label.split(',')[0].toUpperCase();
-                    resultText.style.color = "var(--primary)";
-                    refZone.style.display = 'none';
+                    // Affiche le nom de l'objet détecté par l'IA
+                    statusDisplay.innerText = foundName.split(',')[0].toUpperCase();
+                    statusDisplay.style.color = "var(--accent)";
+                    gallery.style.display = 'none';
                 }
 
-                // Mise à jour visuelle de la barre de fiabilité
-                confidenceBar.style.width = prob + "%";
-                confidenceValue.innerText = `Fiabilité de l'IA : ${prob}%`;
+                meterBar.style.width = score + "%";
+                confText.innerText = "FIABILITÉ DE L'IA : " + score + "%";
             }
 
-            // Demande au navigateur de relancer la fonction dès que possible
-            requestAnimationFrame(startInferenceLoop);
+            requestAnimationFrame(scan);
         }
 
-        /**
-         * SIMULATION DE LA COMMUNICATION AVEC GITHUB
-         */
-        function triggerGitHubSync() {
-            // On n'actualise la photo que si elle n'est pas déjà affichée
-            if (refZone.style.display !== 'block') {
-                // Choix d'un nombre au hasard entre 1 et 20
-                const photoId = Math.floor(Math.random() * 20) + 1;
-                
-                // Construction du chemin vers vos photos sur GitHub
-                // Note : le dossier 'photos' doit exister à côté de ce fichier
-                refImg.src = `photos/chat${photoId}.png`;
-                
-                refZone.style.display = 'block';
+        function showTechnicalReference() {
+            if (gallery.style.display !== 'block') {
+                // Pioche au hasard une image de truc1.png à truc20.png
+                const imgId = Math.floor(Math.random() * 20) + 1;
+                refImg.src = `photos/truc${imgId}.png`;
+                gallery.style.display = 'block';
             }
         }
 
-        // Démarrage de l'application
         window.onload = init;
     </script>
 </body>
